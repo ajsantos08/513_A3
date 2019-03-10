@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; overflow: hidden; font-family: Andale Mono,AndaleMono,monospace;}
+  
+      #main{ margin: 0px; height: 100%; width: 100%; display: flex; flex-direction: column;}
+      .box{ flex: 0 1 100%; display: flex; margin: 5px 10px;}
+      form { flex: 0 0 auto; display: flex;  margin: 5px 10px; }
+      form input {flex: 1 1 auto; border: 1px solid #ddd; height: 40px;margin-right: 5px;}
+      form button {  flex: 0 0 20%; border: 1px solid #ddd;margin-left: 5px;}
+      .username{padding: 5px 10px;}
+      .userlist{flex: 1 1 20%; display: flex; flex-direction: column-reverse; background-color: rgb(68, 68, 68); border: 1px solid #ddd; overflow: auto; margin-left: 5px;}
+      .userlist p { padding: 5px 10px; color: #ffffff}
+      .chat{flex: 1 1 80%; display: flex; flex-direction: column-reverse; background-color: rgb(68, 68, 68); border: 1px solid #ddd; overflow: auto; margin-right: 5px;}
+      .chat p { padding: 5px 10px; color: #ffffff}
+      #user {font-weight: bold;}
+    </style>
+  </head>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+  <script>
+    function load(){
+      $("#messages").scrollTop($("#messages")[0].scrollHeight);
+    }
+
+    $(function () {
+      var socket = io();
+      var nickname = '';
+
+      $('form').submit(function(e){
+        if(document.getElementById('m').value == ''){
+          return false;
+        }else{
+          e.preventDefault(); // prevents page reloading
+          socket.emit('chat message', $('#m').val());
+          $('#m').val('');
+          return false;
+        }
+      });
+
+      socket.on('log', function(log){
+        if(log.length > 0){
+          log.forEach(function(c){
+            var message = $('<p>').text(c[1]);
+            var user = $('<p>').text(c[0]);
+            var ncolor  = c[3];
+            user.append(message);
+            user.css("color", ncolor);
+            message.css("color", "#fff");
+            message.css("background", "transparent");
+            $('.chat').prepend(user);
+          });
+        };
+      });
+
+      socket.on('chat message', function(nick, msg, nickcolor){
+        if(nick == nickname){
+          var message = $('<p>').text(msg);
+          var user = $('<p>').text(nick);
+          user.append(message);
+          user.css("color", nickcolor);
+          message.css("color", "#fff");
+          message.css("background", "transparent");
+          user.attr("id", "user");
+          
+          $('.chat').prepend(user);
+        }else{
+          var message = $('<p>').text(msg);
+          var user = $('<p>').text(nick);
+          user.append(message);
+          user.css("color", nickcolor);
+          message.css("color", "#fff");
+          message.css("background", "transparent");
+          $('.chat').prepend(user);
+        }
+        $("#messages").scrollTop($("#messages")[0].scrollHeight);
+      });
+
+      socket.on('disconnect', function(msg){
+        $('.chat').prepend($('<p>').text(msg));
+        $("#messages").scrollTop($("#messages")[0].scrollHeight);
+      });
+
+      socket.on('join', function(nick){
+        nickname = nick;
+        $('.username').text("You are " + nickname);
+        $('.chat').prepend($('<p>').text('You are '+ nickname + "."));
+        $("#messages").scrollTop($("#messages")[0].scrollHeight);
+      });
+
+      socket.on('newnick', function(nick){
+        nickname = nick;
+        $('.username').text("You are " + nickname);
+        $('.chat').prepend($('<p>').text('You are '+ nickname + "."));
+        $("#messages").scrollTop($("#messages")[0].scrollHeight);
+      });
+
+      socket.on('newcolor', function(nickcolor){
+        var colormsg = $('<p>').text("Changed nickcolor");
+        colormsg.css('color', nickcolor);
+        $('.chat').prepend(colormsg);
+        $("#messages").scrollTop($("#messages")[0].scrollHeight);
+      });
+
+      socket.on('newuser', function(msg){
+        $('.chat').prepend($('<p>').text(msg));
+        $("#messages").scrollTop($("#messages")[0].scrollHeight);
+      })
+
+      socket.on('updatelist', function(userlist){
+        $( '.userlist' ).empty();
+        userlist.forEach(function(u){
+          var uname = $('<p>').text(u[0]);
+          uname.css("color", u[1])
+          $('.userlist').prepend(uname);
+        });
+      });
+      
+      socket.on('errnick', function(newnick){
+        $('.chat').prepend($('<p>').text(newnick +' is taken.'));
+        $("#messages").scrollTop($("#messages")[0].scrollHeight);
+      });
+
+      socket.on('errcolor', function(newcolor){
+        $('.chat').prepend($('<p>').text(newcolor +' is invalid.'));
+        $("#messages").scrollTop($("#messages")[0].scrollHeight);
+      });
+    });
+  </script>
+  <body onload="load()">
+    <div class="main-container" id="main">
+      <p class="username"></p>
+      <div class="box"><div class="chat" id="messages"></div><div class="userlist" id="Users"></div></div>
+      <div class="form"><form action=""><input id="m" autocomplete="off" /><button>Send</button></form></div>
+    </div>
+  </body>
+</html>
